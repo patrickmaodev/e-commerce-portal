@@ -1,11 +1,10 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { useStateContext } from './contexts/ContextProvider';
 import {PATH} from './constants/PATH';
+import { ROLES } from './constants/ROLES';
 
-// Layouts for Admin and Vendor
-import AdminLayout from './components/AdminLayout';
-import VendorLayout from './components/VendorLayout';
-import AuthLayout from './components/AuthLayout';
+import DashboardLayout from './components/layout/DashboardLayout';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import GuestRoute from './components/auth/GuestRoute';
 
 // Admin Pages
 import VendorsList from './pages/admin/VendorsList';
@@ -19,33 +18,27 @@ import Banners from './pages/admin/Banners';
 import Specifications from './pages/admin/Specifications';
 import SubCategories from './pages/admin/SubCategories';
 
-
 // Vendor Pages
 import VendorProducts from './pages/vendor/VendorProducts';
 import VendorProductDetails from './pages/vendor/VendorProductDetails';
 import OrdersVendor from './pages/vendor/OrdersVendor';
 import VendorProfile from './pages/vendor/VendorProfile';
 
-// Auth Pages (for login/signup)
+// Auth Pages
 import AdminLogin from './pages/auth/AdminLogin';
 import VendorLogin from './pages/auth/VendorLogin';
 import Register from './pages/auth/Register';
 import VendorDashboard from './pages/vendor/VendorDashboard';
 import AdminDashboard from './pages/admin/AdminDashboard';
 
-const ProtectedRoute = ({ children}) => {
-  const { token, user } = useStateContext();
-  return children;
-};
-
 export const router = createBrowserRouter([
-
-  /**
-   * ADMIN URLS
-   */
   {
     path: PATH.ADMIN_HOME,
-    element: <ProtectedRoute ><AdminLayout /></ProtectedRoute>,
+    element: (
+      <ProtectedRoute allowedRole={ROLES.SUPERADMIN} loginPath={PATH.AUTH_ADMIN_LOGIN}>
+        <DashboardLayout variant="admin" />
+      </ProtectedRoute>
+    ),
     children: [
       { path: '', element: <Navigate to={PATH.ADMIN_DASHBOARD} /> },
       { path: PATH.ADMIN_DASHBOARD, element: <AdminDashboard /> },
@@ -61,13 +54,13 @@ export const router = createBrowserRouter([
       { path: PATH.ADMIN_SPECIFICATIONS, element: <Specifications />},
     ]
   },
-
-  /**
-   * VENDOR URLS
-   */
   {
     path: PATH.VENDOR_HOME,
-    element: <ProtectedRoute ><VendorLayout /></ProtectedRoute>,
+    element: (
+      <ProtectedRoute allowedRole={ROLES.VENDOR} loginPath={PATH.AUTH_VENDOR_LOGIN}>
+        <DashboardLayout variant="vendor" />
+      </ProtectedRoute>
+    ),
     children: [
       { path: '', element: <Navigate to={PATH.VENDOR_DASHBOARD} /> },
       { path: PATH.VENDOR_DASHBOARD, element: <VendorDashboard /> },
@@ -77,13 +70,9 @@ export const router = createBrowserRouter([
       { path: PATH.VENDOR_PROFILE, element: <VendorProfile /> },
     ]
   },
-
-  /**
-   * AUTHENTICATION URLS
-   */
   {
     path: PATH.AUTH_HOME,
-    element: <AuthLayout />,
+    element: <GuestRoute />,
     children: [
       { path: '', element: <Navigate to={PATH.AUTH_VENDOR_LOGIN} /> },
       { path: PATH.AUTH_ADMIN_LOGIN, element: <AdminLogin /> },
@@ -91,9 +80,5 @@ export const router = createBrowserRouter([
       { path: PATH.AUTH_REGISTER, element: <Register /> },
     ]
   },
-
-  /**
-   * DEFAULT URL
-   */
   { path: PATH.HOME, element: <Navigate to={PATH.AUTH_VENDOR_LOGIN} /> },
 ]);

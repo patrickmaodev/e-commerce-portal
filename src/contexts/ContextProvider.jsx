@@ -1,66 +1,77 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { registerLogoutHandler } from "../utils/authBridge";
 
-// Create the context with initial values
 const StateContext = createContext({
   user: null,
   token: null,
+  isAuthLoading: true,
   setUser: () => {},
   setToken: () => {},
+  logout: () => {},
 });
 
-// Define the provider component
 export const ContextProvider = ({ children }) => {
   const [user, setUserInternal] = useState(null);
   const [token, setTokenInternal] = useState(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
-  // Retrieve the token from localStorage on component mount
   useEffect(() => {
     const savedToken = localStorage.getItem("ACCESS_TOKEN");
+    const savedUser = localStorage.getItem("USER_DATA");
+
     if (savedToken) {
       setTokenInternal(savedToken);
-      console.log("Token loaded from localStorage:", savedToken);
     }
 
-    const savedUser = localStorage.getItem("USER_DATA");
     if (savedUser) {
-      setUserInternal(JSON.parse(savedUser));
-      console.log("User data loaded from localStorage:", savedUser);
+      try {
+        setUserInternal(JSON.parse(savedUser));
+      } catch {
+        localStorage.removeItem("USER_DATA");
+      }
     }
+
+    setIsAuthLoading(false);
   }, []);
 
-  // Function to handle token updates
   const setToken = (newToken) => {
     setTokenInternal(newToken);
     if (newToken) {
-      if (!localStorage.getItem("ACCESS_TOKEN")) {
-        localStorage.setItem("ACCESS_TOKEN", newToken);
-        console.log("Token saved to localStorage.");
-      }
+      localStorage.setItem("ACCESS_TOKEN", newToken);
     } else {
       localStorage.removeItem("ACCESS_TOKEN");
-      console.log("Token removed from localStorage.");
     }
   };
 
-  // Function to handle user updates
   const setUser = (newUser) => {
     setUserInternal(newUser);
     if (newUser) {
       localStorage.setItem("USER_DATA", JSON.stringify(newUser));
-      console.log("User data saved to localStorage.");
     } else {
       localStorage.removeItem("USER_DATA");
-      console.log("User data removed from localStorage.");
     }
   };
+
+  const logout = () => {
+    setUserInternal(null);
+    setTokenInternal(null);
+    localStorage.removeItem("ACCESS_TOKEN");
+    localStorage.removeItem("USER_DATA");
+  };
+
+  useEffect(() => {
+    registerLogoutHandler(logout);
+  }, []);
 
   return (
     <StateContext.Provider
       value={{
         user,
         token,
+        isAuthLoading,
         setUser,
         setToken,
+        logout,
       }}
     >
       {children}
@@ -68,7 +79,7 @@ export const ContextProvider = ({ children }) => {
   );
 };
 
-// Hook to access the context
 export const useStateContext = () => useContext(StateContext);
+export const useAuth = useStateContext;
 
 export default ContextProvider;
