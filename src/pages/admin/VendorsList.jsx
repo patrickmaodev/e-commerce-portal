@@ -1,152 +1,107 @@
-import React, { useEffect, useState } from "react";
-import { Table, Input, Button, Popconfirm, message, Modal, Form, Select } from "antd";
+import { useState, useCallback } from "react";
+import { Input, Button, Popconfirm, message, Modal, Form } from "antd";
 import { FaEdit, FaTrashAlt } from "react-icons/fa";
 import Breadcrumb from "../../components/Breadcrumb";
-import API from "../../constants/API";
-import axiosConfig from "../../constants/AXIOS_CONFIG";
+import DataTable from "../../components/tables/DataTable";
+import { useServerTable } from "../../hooks/useServerTable";
+import { vendorService } from "../../services/admin/vendorService";
 
 export default function VendorsList() {
-  const [dataSource, setDataSource] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [editingKey, setEditingKey] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
-  const [searchText, setSearchText] = useState("");
-  const [filteredData, setFilteredData] = useState([]);
-  const [pagination, setPagination] = useState({ pageSize: 5, current: 1 });
 
-  // Fetch vendors on mount
-  useEffect(() => {
-    const fetchVendors = async () => {
-      try {
-        const response = await axiosConfig.get(API.VENDORS);
-        const vendors = response.data.map((item) => ({
-          ...item,
-          key: item.id,
-        }));
-        setDataSource(vendors);
-        setFilteredData(vendors);
-      } catch (error) {
-        message.error("Failed to fetch vendors");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchVendors = useCallback(
+    (params) => vendorService.getVendors(params),
+    []
+  );
 
-    fetchVendors();
-  }, []);
+  const {
+    data: dataSource,
+    setData,
+    loading,
+    error,
+    search,
+    pagination,
+    handlePaginationChange,
+    handleSearch,
+    reload,
+  } = useServerTable({ fetchFn: fetchVendors, initialPageSize: 20 });
 
-  // Start editing a row
-  const startEditing = (record) => {
-    setEditingKey(record.key);
-  };
+  const startEditing = (record) => setEditingKey(record.key);
+  const cancelEditing = () => setEditingKey("");
 
-  // Cancel editing
-  const cancelEditing = () => {
-    setEditingKey("");
-  };
-
-  // Save edited changes
   const saveEdit = async (key) => {
     const row = dataSource.find((item) => item.key === key);
-    const updatedRow = {
-      ...row,
-      firstName: row.user.firstName || "",
-      lastName: row.user.lastName || "",
-      email: row.user.email || "",
-    };
-
+    setSubmitting(true);
     try {
-      await axiosConfig.put(`${API.VENDORS}/${key}`, updatedRow);
+      await vendorService.updateVendor(key, {
+        user: {
+          firstName: row.user.firstName,
+          lastName: row.user.lastName,
+          email: row.user.email,
+        },
+      });
       message.success("Vendor updated successfully");
       setEditingKey("");
-    } catch (error) {
+      reload();
+    } catch {
       message.error("Failed to update vendor");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  // Handle cell value change
   const handleInputChange = (key, column, value) => {
-    const newData = [...dataSource];
-    const index = newData.findIndex((item) => item.key === key);
-    if (index > -1) {
-      if (["firstName", "lastName", "email"].includes(column)) {
-        newData[index].user[column] = value;
-      } else {
-        newData[index][column] = value;
+    setData((prev) => {
+      const next = [...prev];
+      const index = next.findIndex((item) => item.key === key);
+      if (index > -1 && ["firstName", "lastName", "email"].includes(column)) {
+        next[index] = {
+          ...next[index],
+          user: { ...next[index].user, [column]: value },
+        };
       }
-      setDataSource(newData);
-    }
+      return next;
+    });
   };
 
-  // Delete a vendor
   const handleDelete = async (key) => {
     try {
-      await axiosConfig.delete(`${API.VENDORS}/${key}`);
-      const newData = dataSource.filter((item) => item.key !== key);
-      setDataSource(newData);
-      setFilteredData(newData);
+      await vendorService.deleteVendor(key);
       message.success("Vendor deleted successfully");
-    } catch (error) {
+      reload();
+    } catch {
       message.error("Failed to delete vendor");
     }
   };
 
-  // Add new vendor
   const handleAddVendor = async () => {
     const values = await form.validateFields();
     try {
-      const response = await axiosConfig.post(API.VENDORS, values);
-      const createdVendor = response.data;
-      const updatedData = [
-        ...dataSource,
-        { ...createdVendor, key: createdVendor.id },
-      ];
-      setDataSource(updatedData);
-      setFilteredData(updatedData);
+      setSubmitting(true);
+      await vendorService.createVendor(values);
       message.success("Vendor added successfully");
       form.resetFields();
       setIsModalVisible(false);
-    } catch (error) {
-      if (error.response && error.response.data) {
-        const { msg } = error.response.data;
-  
-        message.error(msg);
-      } else {
-        message.error("An unexpected error occurred");
-      }
+      reload();
+    } catch (err) {
+      message.error(err.response?.data?.message || "An unexpected error occurred");
+    } finally {
+      setSubmitting(false);
     }
   };
-  
 
-  // Handle search
-  const handleSearch = (value) => {
-    setSearchText(value);
-    const filtered = dataSource.filter(
-      (item) =>
-        item.user.firstName.toLowerCase().includes(value.toLowerCase()) ||
-        item.user.email.toLowerCase().includes(value.toLowerCase())
-    );
-    setFilteredData(filtered);
-  };
-
-  // Handle pagination change
-  const handlePaginationChange = (current, pageSize) => {
-    setPagination({ current, pageSize });
-  };
-
-  // Columns definition
   const columns = [
     {
       title: "First Name",
-      dataIndex: "user.firstName",
+      dataIndex: ["user", "firstName"],
       render: (_, record) =>
         editingKey === record.key ? (
           <Input
             defaultValue={record.user.firstName}
-            onChange={(e) =>
-              handleInputChange(record.key, "firstName", e.target.value)
-            }
+            onChange={(e) => handleInputChange(record.key, "firstName", e.target.value)}
           />
         ) : (
           record.user.firstName
@@ -154,14 +109,12 @@ export default function VendorsList() {
     },
     {
       title: "Last Name",
-      dataIndex: "user.lastName",
+      dataIndex: ["user", "lastName"],
       render: (_, record) =>
         editingKey === record.key ? (
           <Input
             defaultValue={record.user.lastName}
-            onChange={(e) =>
-              handleInputChange(record.key, "lastName", e.target.value)
-            }
+            onChange={(e) => handleInputChange(record.key, "lastName", e.target.value)}
           />
         ) : (
           record.user.lastName
@@ -169,14 +122,12 @@ export default function VendorsList() {
     },
     {
       title: "Email",
-      dataIndex: "user.email",
+      dataIndex: ["user", "email"],
       render: (_, record) =>
         editingKey === record.key ? (
           <Input
             defaultValue={record.user.email}
-            onChange={(e) =>
-              handleInputChange(record.key, "email", e.target.value)
-            }
+            onChange={(e) => handleInputChange(record.key, "email", e.target.value)}
           />
         ) : (
           record.user.email
@@ -188,16 +139,10 @@ export default function VendorsList() {
         const editable = editingKey === record.key;
         return editable ? (
           <span>
-            <Button
-              type="link"
-              onClick={() => saveEdit(record.key)}
-              style={{ marginRight: 8 }}
-            >
+            <Button type="link" onClick={() => saveEdit(record.key)} style={{ marginRight: 8 }}>
               Save
             </Button>
-            <Button type="link" onClick={cancelEditing}>
-              Cancel
-            </Button>
+            <Button type="link" onClick={cancelEditing}>Cancel</Button>
           </span>
         ) : (
           <span>
@@ -230,37 +175,18 @@ export default function VendorsList() {
         </Button>
       </div>
 
-      <div className="mt-2">
-        <Table
-          dataSource={filteredData}
-          loading={loading}
+      <div className="mt-2 overflow-x-auto">
+        <DataTable
           columns={columns}
-          rowClassName="editable-row"
-          pagination={{
-            pageSize: pagination.pageSize,
-            current: pagination.current,
-            onChange: handlePaginationChange,
-          }}
-          title={() => (
-            <div className="flex justify-between">
-              <Select
-                defaultValue={5}
-                onChange={(value) => handlePaginationChange(pagination.current, value)}
-                options={[
-                  { label: "5", value: 5 },
-                  { label: "10", value: 10 },
-                  { label: "20", value: 20 },
-                ]}
-                style={{ marginRight: 10, width: 100 }}
-              />
-              <Input.Search
-                placeholder="Search vendors"
-                value={searchText}
-                onChange={(e) => handleSearch(e.target.value)}
-                style={{ width: 300 }}
-              />
-            </div>
-          )}
+          dataSource={dataSource}
+          loading={loading || submitting}
+          error={error}
+          onRetry={reload}
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
+          search={search}
+          onSearch={handleSearch}
+          searchPlaceholder="Search vendors"
         />
       </div>
 
@@ -269,7 +195,7 @@ export default function VendorsList() {
         open={isModalVisible}
         onOk={handleAddVendor}
         onCancel={() => setIsModalVisible(false)}
-        confirmLoading={loading}
+        confirmLoading={submitting}
       >
         <Form form={form} layout="vertical">
           <Form.Item
