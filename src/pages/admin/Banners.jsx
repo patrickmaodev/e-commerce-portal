@@ -1,398 +1,276 @@
-import React, { useState, useEffect } from "react";
-import { Table, Input, Button, Popconfirm, message, Modal, Form, DatePicker, Switch, Row, Col, Select } from "antd";
+import { useState, useMemo, useCallback } from "react";
+import {
+  Button, Modal, Form, Input, DatePicker, Switch, Row, Col, Select, Popconfirm,
+} from "antd";
+import dayjs from "dayjs";
 import Breadcrumb from "../../components/Breadcrumb";
 import { FaEdit, FaTrashAlt } from "react-icons/fa";
-import axiosConfig from "../../constants/AXIOS_CONFIG";
-import API from "../../constants/API";
-import moment from "moment";
+import { CrudTable } from "../../components/tables/CrudTable";
+import { useCrudTable } from "../../hooks/useCrudTable";
+import { adminCatalogService } from "../../services/admin/catalogService";
+
+const BANNER_CATEGORIES = [
+  "homepage", "category-pages", "promotions", "product",
+  "featured", "seasonal", "sale", "event",
+];
+
+const BANNER_TYPES = ["featured", "promotional", "seasonal"];
 
 const Banners = () => {
-    const [dataSource, setDataSource] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [editingKey, setEditingKey] = useState("");
-    const [isModalVisible, setIsModalVisible] = useState(false);
-    const [form] = Form.useForm();
-    const [searchText, setSearchText] = useState("");
-    const [filteredData, setFilteredData] = useState([]);
-    const [pagination, setPagination] = useState({ pageSize: 5, current: 1 });
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [form] = Form.useForm();
 
-    // Fetch banners on mount
-    useEffect(() => {
-        const fetchBanners = async () => {
-            try {
-                const response = await axiosConfig.get(API.ADMIN_BANNERS);
-                const banners = response.data.map((item) => ({
-                    ...item,
-                    key: item.bannerId,
-                }));
-                setDataSource(banners);
-                setFilteredData(banners);
-            } catch (error) {
-                message.error(error.response.data);
-            } finally {
-                setLoading(false);
+  const fetchFn = useCallback(() => adminCatalogService.getBanners(), []);
+  const updateFn = useCallback(
+    (id, row) => adminCatalogService.updateBanner(id, row),
+    []
+  );
+  const deleteFn = useCallback((id) => adminCatalogService.deleteBanner(id), []);
+  const createFn = useCallback(
+    (values) => {
+      const payload = {
+        ...values,
+        startDate: values.startDate?.toISOString?.() ?? values.startDate,
+        endDate: values.endDate?.toISOString?.() ?? values.endDate,
+      };
+      return adminCatalogService.createBanner(payload);
+    },
+    []
+  );
+
+  const {
+    filteredData,
+    loading,
+    editingKey,
+    searchText,
+    pagination,
+    startEditing,
+    cancelEditing,
+    handleInputChange,
+    saveEdit,
+    handleDelete,
+    handleCreate,
+    handleSearch,
+    handlePaginationChange,
+  } = useCrudTable({
+    fetchFn,
+    updateFn,
+    deleteFn,
+    createFn,
+    searchFields: ["bannerTitle"],
+    fetchErrorMessage: "Failed to fetch banners",
+    rowKeyField: "bannerId",
+  });
+
+  const columns = useMemo(() => [
+    {
+      title: "Banner Title",
+      dataIndex: "bannerTitle",
+      render: (_, record) =>
+        editingKey === record.key ? (
+          <Input
+            defaultValue={record.bannerTitle}
+            onChange={(e) => handleInputChange(record.key, "bannerTitle", e.target.value)}
+          />
+        ) : record.bannerTitle,
+    },
+    {
+      title: "Banner Image",
+      dataIndex: "bannerImageUrl",
+      render: (url) => <img src={url} alt="Banner" style={{ width: 100 }} />,
+    },
+    {
+      title: "Category",
+      dataIndex: "category",
+      render: (_, record) =>
+        editingKey === record.key ? (
+          <Select
+            defaultValue={record.category}
+            onChange={(value) => handleInputChange(record.key, "category", value)}
+            options={BANNER_CATEGORIES.map((c) => ({ label: c, value: c }))}
+          />
+        ) : record.category,
+    },
+    {
+      title: "Start Date",
+      dataIndex: "startDate",
+      render: (_, record) =>
+        editingKey === record.key ? (
+          <DatePicker
+            showTime
+            defaultValue={record.startDate ? dayjs(record.startDate) : null}
+            onChange={(date) =>
+              handleInputChange(record.key, "startDate", date ? date.toISOString() : null)
             }
-        };
-
-        fetchBanners();
-    }, []);
-
-    // Start editing a row
-    const startEditing = (record) => {
-        setEditingKey(record.key);
-    };
-
-    // Cancel editing
-    const cancelEditing = () => {
-        setEditingKey("");
-    };
-
-    // Save edited changes
-    const handleUpdateBanner = async (key) => {
-        const row = dataSource.find((item) => item.key === key);
-        try {
-            await axiosConfig.put(`${API.ADMIN_BANNERS_UPDATE}/${key}`, row);
-            message.success("Banner updated successfully");
-            setEditingKey("");
-        } catch (error) {
-            message.error("Failed to update banner");
-        }
-    };
-
-    const handleInputChange = (key, column, value) => {
-        const newData = [...dataSource];
-        const index = newData.findIndex((item) => item.key === key);
-        if (index > -1) {
-            newData[index][column] = value;
-            setDataSource(newData);
-        }
-    };
-
-    // Add new banner
-    const handleAddBanner = async () => {
-        const values = await form.validateFields();
-
-        try {
-            const response = await axiosConfig.post(API.ADMIN_BANNERS, values);
-
-            const { code, msg, result } = response.data;
-
-            if (code === 201) {
-                const updatedData = [
-                    ...dataSource,
-                    { ...bannerData, key: result.bannerId },
-                ];
-                setDataSource(updatedData);
-                setFilteredData(updatedData);
-                message.success(msg || "Banner added successfully!");
-                form.resetFields();
-                setIsModalVisible(false);
-            } else {
-                message.error(msg || "Unexpected error occurred.");
+          />
+        ) : dayjs(record.startDate).format("YYYY-MM-DD HH:mm:ss"),
+    },
+    {
+      title: "End Date",
+      dataIndex: "endDate",
+      render: (_, record) =>
+        editingKey === record.key ? (
+          <DatePicker
+            showTime
+            defaultValue={record.endDate ? dayjs(record.endDate) : null}
+            onChange={(date) =>
+              handleInputChange(record.key, "endDate", date ? date.toISOString() : null)
             }
-        } catch (error) {
-            if (error.response && error.response.data) {
-                const errorMessage = error.response.data.msg;
-                message.error(errorMessage || "An unexpected error occurred.");
-            } else {
-                message.error("Network error or server is unreachable.");
-            }
-        }
-    };
-
-    // Delete a banner
-    const handleDelete = async (key) => {
-        try {
-            await axiosConfig.delete(`${API.ADMIN_BANNERS}/${key}`);
-            const newData = dataSource.filter((item) => item.key !== key);
-            setDataSource(newData);
-            setFilteredData(newData);
-            message.success("Banner deleted successfully");
-        } catch (error) {
-            message.error("Failed to delete banner");
-        }
-    };
-
-    // Handle search
-    const handleSearch = (value) => {
-        setSearchText(value);
-        const filtered = dataSource.filter(
-        (item) =>
-            item.bannerTitle.toLowerCase().includes(value.toLowerCase())
-        );
-        setFilteredData(filtered);
-    };
-
-    // Handle pagination change
-    const handlePaginationChange = (current, pageSize) => {
-        setPagination({ current, pageSize });
-    };
-
-    // Columns definition
-    const columns = [
-        {
-            title: "Banner Title",
-            dataIndex: "bannerTitle",
-            render: (_, record) => 
-            editingKey === record.key ? (
-                <Input
-                    defaultValue={record.bannerTitle}
-                    onChange={(e) =>
-                        handleInputChange(record.key, "bannerTitle", e.target.value)
-                    }
-                />
-            ) : (
-                record.bannerTitle
-            ),
-        },
-        {
-            title: "Banner Image",
-            dataIndex: "bannerImageUrl",
-            render: (url) => <img src={url} alt="Banner" style={{ width: 100 }} />,
-        },
-        {
-            title: "Category",
-            dataIndex: "category",
-            render: (_, record) =>
-            editingKey === record.key ? (
-                <Select defaultValue={record.caategory}
-                onChange={(value) =>
-                    handleInputChange(record.key, "category", value)
-                }>
-                    <Select.Option value="homepage">Homepage</Select.Option>
-                    <Select.Option value="category-pages">Category Pages</Select.Option>
-                    <Select.Option value="promotions">Promotions</Select.Option>
-                    <Select.Option value="product">Product</Select.Option>
-                    <Select.Option value="featured">Featured</Select.Option>
-                    <Select.Option value="promotions">Promotions</Select.Option>
-                    <Select.Option value="seasonal">Seasonal</Select.Option>
-                    <Select.Option value="sale">Sale</Select.Option>
-                    <Select.Option value="event">Event</Select.Option>
-                </Select>
-            ) : (
-                record.bannerType
-            ),
-        },
-        {
-            title: "Start Date",
-            dataIndex: "startDate",
-            render: (_, record) =>
-            editingKey === record.key ? (
-                <DatePicker showTime defaultValue={record.startDate ? moment(record.startDate) : null}
-                onChange={(date) =>
-                    handleInputChange(record.key, "startDate", date ? date.toISOString() : null)
-                }/>
-            ) : (
-                moment(record.startDate).format("YYYY-MM-DD HH:mm:ss")
-            ),
-        },
-        {
-            title: "End Date",
-            dataIndex: "endDate",
-            render: (_, record) =>
-            editingKey === record.key ? (
-                <DatePicker showTime defaultValue={record.endDate ? moment(record.endDate) : null}
-                onChange={(date) => 
-                    handleInputChange(record.key, "endDate", date ? date.toISOString() : null)
-                }/>
-            ) : (
-                moment(record.endDate).format("YYYY-MM-DD HH:mm:ss")
-            ),
-        },
-        
-        {
-            title: "Active",
-            dataIndex: "isActive",
-            render: (_, record) =>
-                editingKey === record.key ? (
-                    <Switch checked={record.isActive} onChange={(checked) => handleInputChange(record.key, "isActive", checked)}/>
-                ) : (
-                    record.isActive ? "Yes" : "No"
-                ),
-        },
-        {
-            title: "Type",
-            dataIndex: "bannerType",
-            render: (_, record) =>
-            
-                editingKey === record.key ? (
-
-                    <Select defaultValue={record.bannerType} onChange={(value) => handleInputChange(record.key, "bannerType", value)}>
-                        <Select.Option value="promotional">Promotional</Select.Option>
-                        <Select.Option value="featured">Featured</Select.Option>
-                        <Select.Option value="seeasonal">Seasonal</Select.Option>
-                    </Select>
-                ) : (
-                    record.bannerType
-                ),
-        },
-        {
-            title: "Actions",
-            render: (_, record) => {
-                const editable = editingKey === record.key;
-                return editable ? (
-                    <span>
-                        <Button type="link" onClick={() => handleUpdateBanner(record.key)} style={{ marginRight: 8 }}>
-                            Save
-                        </Button>
-                        <Button type="link" onClick={cancelEditing}>
-                            Cancel
-                        </Button>
-                    </span>
-                ) : (
-                <span>
-                    <Button icon={<FaEdit />} onClick={() => startEditing(record)} size="small" style={{ marginRight: 8 }}/>
-                    <Popconfirm title="Are you sure to delete this banner?" onConfirm={() => handleDelete(record.key)}>
-                        <Button icon={<FaTrashAlt />} size="small" danger />
-                    </Popconfirm>
-                </span>
-                );
-            },
-        },
-    ];
-  
-
-    return (
-        <div className="p-6 bg-white">
-            <Breadcrumb />
-            <div className="row flex justify-between mt-2">
-                <h3 className="text-2xl font-semibold">Banners</h3>
-            <Button type="primary" onClick={() => setIsModalVisible(true)}>
-                Add Banner
+          />
+        ) : dayjs(record.endDate).format("YYYY-MM-DD HH:mm:ss"),
+    },
+    {
+      title: "Active",
+      dataIndex: "isActive",
+      render: (_, record) =>
+        editingKey === record.key ? (
+          <Switch
+            checked={record.isActive}
+            onChange={(checked) => handleInputChange(record.key, "isActive", checked)}
+          />
+        ) : (record.isActive ? "Yes" : "No"),
+    },
+    {
+      title: "Type",
+      dataIndex: "bannerType",
+      render: (_, record) =>
+        editingKey === record.key ? (
+          <Select
+            defaultValue={record.bannerType}
+            onChange={(value) => handleInputChange(record.key, "bannerType", value)}
+            options={BANNER_TYPES.map((t) => ({ label: t, value: t }))}
+          />
+        ) : record.bannerType,
+    },
+    {
+      title: "Actions",
+      render: (_, record) => {
+        const editable = editingKey === record.key;
+        return editable ? (
+          <span>
+            <Button type="link" onClick={() => saveEdit(record.key)} style={{ marginRight: 8 }}>
+              Save
             </Button>
-        </div>
-        <Table
-            dataSource={filteredData}
-            loading={loading}
-            columns={columns}
-            rowClassName="editable-row"
-            pagination={{
-                pageSize: pagination.pageSize,
-                current: pagination.current,
-                onChange: handlePaginationChange,
-            }}
-            title={() => (
-                <div className="flex justify-between">
-                    <Input.Search placeholder="Search banner" value={searchText} onChange={(e) => handleSearch(e.target.value)} style={{ width: 300 }}/>
-                </div>
-            )}
-        />
-        <Modal
-            title="Add Banner"
-            open={isModalVisible}
-            onOk={handleAddBanner}
-            onCancel={() => setIsModalVisible(false)}
-            width={800}
+            <Button type="link" onClick={cancelEditing}>Cancel</Button>
+          </span>
+        ) : (
+          <span>
+            <Button icon={<FaEdit />} onClick={() => startEditing(record)} size="small" style={{ marginRight: 8 }} />
+            <Popconfirm title="Are you sure to delete this banner?" onConfirm={() => handleDelete(record.key)}>
+              <Button icon={<FaTrashAlt />} size="small" danger />
+            </Popconfirm>
+          </span>
+        );
+      },
+    },
+  ], [editingKey, handleInputChange, startEditing, saveEdit, cancelEditing, handleDelete]);
+
+  const handleAddBanner = async () => {
+    const values = await form.validateFields();
+    const success = await handleCreate(values);
+    if (success) {
+      form.resetFields();
+      setIsModalVisible(false);
+    }
+  };
+
+  return (
+    <div className="p-6 bg-white">
+      <Breadcrumb />
+      <div className="row flex justify-between mt-2">
+        <h3 className="text-2xl font-semibold">Banners</h3>
+        <Button type="primary" onClick={() => setIsModalVisible(true)}>
+          Add Banner
+        </Button>
+      </div>
+      <CrudTable
+        filteredData={filteredData}
+        loading={loading}
+        columns={columns}
+        pagination={pagination}
+        onPaginationChange={handlePaginationChange}
+        searchText={searchText}
+        onSearch={handleSearch}
+        searchPlaceholder="Search banner"
+      />
+      <Modal
+        title="Add Banner"
+        open={isModalVisible}
+        onOk={handleAddBanner}
+        onCancel={() => setIsModalVisible(false)}
+        width={800}
+        confirmLoading={loading}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{
+            category: "homepage",
+            bannerType: "featured",
+            isActive: false,
+          }}
         >
-            <Form
-                form={form}
-                layout="vertical"
-                initialValues={{
-                    bannerTitle: "",
-                    bannerImageUrl: "",
-                    startDate: null,
-                    endDate: null,
-                    category: "homepage",
-                    bannerType: "featured",
-                    isActive: false,
-                }}
-            >
-                {/* Banner Name */}
-                <Form.Item
-                    label="Banner Title"
-                    name="bannerTitle"
-                    rules={[{ required: true, message: "Please input banner title!" }]}
-                >
-                    <Input />
-                </Form.Item>
-
-                <Row gutter={16}>
-                    {/* Banner Image URL */}
-                    <Col span={24}>
-                        <Form.Item
-                            label="Banner Image URL"
-                            name="bannerImageUrl"
-                            rules={[{ required: true, message: "Please input banner image URL!" }]}
-                        >
-                            <Input style={{ width: "100%" }} />
-                        </Form.Item>
-                    </Col>
-                </Row>
-
-                <Row gutter={16}>
-                    {/* Start Date */}
-                    <Col span={12}>
-                        <Form.Item
-                            label="Start Date"
-                            name="startDate"
-                            rules={[{ required: true, message: "Please select start date!" }]}
-                        >
-                            <DatePicker style={{ width: "100%" }} showTime />
-                        </Form.Item>
-                    </Col>
-
-                    {/* End Date */}
-                    <Col span={12}>
-                        <Form.Item
-                            label="End Date"
-                            name="endDate"
-                            rules={[{ required: true, message: "Please select end date!" }]}
-                        >
-                            <DatePicker style={{ width: "100%" }} showTime />
-                        </Form.Item>
-                    </Col>
-                </Row>
-
-                <Row gutter={16}>
-                    {/* Category */}
-                    <Col span={12}>
-                        <Form.Item
-                            label="Category"
-                            name="category"
-                            rules={[{ required: true, message: "Please select a category!" }]}
-                        >
-                            <Select placeholder="Select a category" style={{ width: "100%" }}>
-                                <Select.Option value="homepage">Homepage</Select.Option>
-                                <Select.Option value="category-pages">Category Pages</Select.Option>
-                                <Select.Option value="promotions">Promotions</Select.Option>
-                                <Select.Option value="product">Product</Select.Option>
-                                <Select.Option value="featured">Featured</Select.Option>
-                                <Select.Option value="seasonal">Seasonal</Select.Option>
-                                <Select.Option value="sale">Sale</Select.Option>
-                                <Select.Option value="event">Event</Select.Option>
-                            </Select>
-                        </Form.Item>
-                    </Col>
-                </Row>
-
-                <Row gutter={16}>
-                    {/* Banner Type */}
-                    <Col span={8}>
-                        <Form.Item
-                            label="Banner Type"
-                            name="bannerType"
-                            rules={[{ required: true, message: "Please select banner type!" }]}
-                        >
-                            <Select>
-                                <Select.Option value="featured">Featured</Select.Option>
-                                <Select.Option value="promotional">Promotional</Select.Option>
-                                <Select.Option value="seasonal">Seasonal</Select.Option>
-                            </Select>
-                        </Form.Item>
-                    </Col>
-
-                    {/* Is Active */}
-                    <Col span={8}>
-                        <Form.Item label="Is Active" name="isActive" valuePropName="checked">
-                            <Switch />
-                        </Form.Item>
-                    </Col>
-                </Row>
-            </Form>
-        </Modal>
-
-        </div>
-    );
+          <Form.Item
+            label="Banner Title"
+            name="bannerTitle"
+            rules={[{ required: true, message: "Please input banner title!" }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            label="Banner Image URL"
+            name="bannerImageUrl"
+            rules={[{ required: true, message: "Please input banner image URL!" }]}
+          >
+            <Input />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Start Date"
+                name="startDate"
+                rules={[{ required: true, message: "Please select start date!" }]}
+              >
+                <DatePicker style={{ width: "100%" }} showTime />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="End Date"
+                name="endDate"
+                rules={[{ required: true, message: "Please select end date!" }]}
+              >
+                <DatePicker style={{ width: "100%" }} showTime />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="Category"
+                name="category"
+                rules={[{ required: true, message: "Please select a category!" }]}
+              >
+                <Select options={BANNER_CATEGORIES.map((c) => ({ label: c, value: c }))} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="Banner Type"
+                name="bannerType"
+                rules={[{ required: true, message: "Please select banner type!" }]}
+              >
+                <Select options={BANNER_TYPES.map((t) => ({ label: t, value: t }))} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label="Is Active" name="isActive" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
 };
 
 export default Banners;
