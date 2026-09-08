@@ -1,13 +1,17 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useStateContext } from "../../contexts/ContextProvider";
 import { authService } from "../../services/auth/authService";
 import { getApiErrorMessage } from "../../api/errors";
-import { useStateContext } from "../../contexts/ContextProvider";
-import { PATH } from "../../constants/PATH";
 
-export default function Register() {
-  const firstNameRef = useRef();
-  const lastNameRef = useRef();
+export default function LoginForm({
+  title,
+  loginFn,
+  expectedRole,
+  redirectPath,
+  fallbackPath,
+  registerLink,
+}) {
   const emailRef = useRef();
   const passwordRef = useRef();
   const { setUser, setToken } = useStateContext();
@@ -21,24 +25,28 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const data = await authService.vendorRegister({
-        firstname: firstNameRef.current.value,
-        lastname: lastNameRef.current.value,
+      const data = await loginFn({
         email: emailRef.current.value,
         password: passwordRef.current.value,
       });
 
+      setUser(data.user);
       setToken(data.token);
-      if (data.user) {
-        setUser(data.user);
+
+      if (data.user.roleName === expectedRole) {
+        navigate(redirectPath);
+      } else {
+        navigate(fallbackPath);
       }
-      navigate(PATH.VENDOR_DASHBOARD);
+
+      emailRef.current.value = "";
+      passwordRef.current.value = "";
     } catch (err) {
       const response = err.response;
       if (response?.status === 422 && response.data?.errors) {
         setErrors(response.data.errors);
       } else {
-        setErrors({ generic: [getApiErrorMessage(err, "Registration failed. Please try again.")] });
+        setErrors({ generic: [getApiErrorMessage(err)] });
       }
     } finally {
       setLoading(false);
@@ -48,25 +56,19 @@ export default function Register() {
   return (
     <div className="login-form-container">
       <div className="login-form">
-        <h1>Signup for free</h1>
+        <h1>{title}</h1>
 
         {errors && (
           <div className="alert">
             {Object.keys(errors).map((key) => (
-              <p key={key} className="text-sm">{errors[key][0]}</p>
+              <p key={key} className="text-sm text-red-500">
+                {errors[key][0]}
+              </p>
             ))}
           </div>
         )}
 
         <form onSubmit={onSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="first_name">First Name</label>
-            <input ref={firstNameRef} id="first_name" type="text" placeholder="First Name" required />
-          </div>
-          <div>
-            <label htmlFor="last_name">Last Name</label>
-            <input ref={lastNameRef} id="last_name" type="text" placeholder="Last Name" required />
-          </div>
           <div>
             <label htmlFor="email">Email</label>
             <input ref={emailRef} id="email" type="email" placeholder="Email" required />
@@ -75,19 +77,22 @@ export default function Register() {
             <label htmlFor="password">Password</label>
             <input ref={passwordRef} id="password" type="password" placeholder="Password" required />
           </div>
-
           <button type="submit" disabled={loading}>
-            {loading ? "Registering..." : "Register"}
+            {loading ? "Logging in..." : "Login"}
           </button>
+        </form>
 
+        {registerLink && (
           <p className="text-center text-gray-600 mt-4">
-            Already have an account?{" "}
-            <Link to={PATH.AUTH_VENDOR_LOGIN} className="text-blue-600 hover:text-blue-800">
-              Log In
+            Not Registered?{" "}
+            <Link to={registerLink.to} className="text-blue-600 hover:text-blue-800">
+              {registerLink.label}
             </Link>
           </p>
-        </form>
+        )}
       </div>
     </div>
   );
 }
+
+export { authService };
