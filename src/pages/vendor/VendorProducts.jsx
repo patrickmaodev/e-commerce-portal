@@ -1,24 +1,24 @@
-import React, { useState, useEffect } from "react";
-import { Table, Input, Button, Popconfirm, message, Modal, Form, Select, Upload, Row, Col } from "antd";
+import React, { useState, useEffect, useCallback } from "react";
+import { Input, Button, Popconfirm, message, Modal, Form, Select, Upload, Row, Col } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
+import DataTable from "../../components/tables/DataTable";
 import { FaEdit, FaTrashAlt, FaEye } from "react-icons/fa";
-import axiosConfig from "../../constants/AXIOS_CONFIG";
-import API from "../../constants/API";
+import { productService } from "../../services/vendor/productService";
+import { vendorCatalogService } from "../../services/vendor/catalogService";
+import { useServerTable } from "../../hooks/useServerTable";
 import { PATH } from "../../constants/PATH";
 import defaultProductImage from "../../assets/product-image.jpg";
-import { useNavigate } from "react-router-dom";
 
 const VendorProducts = () => {
-  const [dataSource, setDataSource] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
   const [file, setFile] = useState(null);
   const [editingKey, setEditingKey] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [imageSource, setImageSource] = useState("upload");
-  const [searchText, setSearchText] = useState("");
-  const [filteredData, setFilteredData] = useState([]);
   const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -27,8 +27,23 @@ const VendorProducts = () => {
   const [productStatuses, setProductStatuses] = useState([]);
   const [specifications, setSpecifications] = useState([]);
   const [loadingSpecifications, setLoadingSpecifications] = useState(false);
-  const [pagination, setPagination] = useState({ pageSize: 5, current: 1 });
-  const navigate = useNavigate();
+
+  const fetchProducts = useCallback(
+    (params) => productService.getVendorProducts(params),
+    []
+  );
+
+  const {
+    data: dataSource,
+    setData,
+    loading,
+    error,
+    search,
+    pagination,
+    handlePaginationChange,
+    handleSearch,
+    reload,
+  } = useServerTable({ fetchFn: fetchProducts, initialPageSize: 20 });
 
 
   const handleSourceChange = (value) => {
@@ -37,61 +52,24 @@ const VendorProducts = () => {
     form.setFieldsValue({ imageFile: undefined, imageUrl: undefined });
   };
 
-  // Fetch Products and related data on mount
+  // Load catalog metadata once (small reference data — client-side is fine)
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchCatalog = async () => {
       try {
-        const [productsRes, categoriesRes, subCategoriesRes, statusesRes] = await Promise.all([
-          axiosConfig.get(API.VENDOR_PRODUCTS),
-          axiosConfig.get(API.CATEGORIES),
-          axiosConfig.get(API.ADMIN_SUBCATEGORIES),
-          axiosConfig.get(API.PRODUCT_STATUSES),
-          axiosConfig.get(API.ADMIN_SPECIFICATIONS)
+        const [categoriesRes, subCategoriesRes, statusesRes] = await Promise.all([
+          vendorCatalogService.getCategories(),
+          vendorCatalogService.getSubCategories(),
+          vendorCatalogService.getProductStatuses(),
         ]);
-
-        const products = productsRes.data.map((item) => ({
-          ...item,
-          key: item.id,
-        }));
-
-        setDataSource(products);
-        setFilteredData(products);
-        setCategories(categoriesRes.data);
-        setSubCategories(subCategoriesRes.data.result);
-        setProductStatuses(statusesRes.data);
-      } catch (error) {
-        message.error("Failed to fetch data");
-      } finally {
-        setLoading(false);
+        setCategories(categoriesRes);
+        setSubCategories(subCategoriesRes);
+        setProductStatuses(statusesRes);
+      } catch {
+        message.error("Failed to fetch catalog metadata");
       }
     };
-
-    fetchData();
+    fetchCatalog();
   }, []);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [specificationsRes] = await Promise.all([
-          axiosConfig.get(API.ADMIN_SPECIFICATIONS),
-        ]);
-  
-        const specs = specificationsRes.data.result.map((spec) => ({
-          id: spec.id,
-          name: spec.name,
-        }));
-  
-        form.setFieldsValue({ specifications: specs });
-        setSpecifications(specs);
-      } catch (error) {
-        message.error("Failed to fetch data");
-      } finally {
-        setLoading(false);
-      }
-    };
-  
-    fetchData();
-  }, [form]);
 
   // Handle category change event
   const handleCategoryChange = async (value) => {
@@ -101,8 +79,8 @@ const VendorProducts = () => {
     setSubCategories([]);
     setLoadingSubCategories(true);
     try {
-      const response = await axiosConfig.get(API.ADMIN_CATEGORY_SUBCATEGORIES(value));
-      setSubCategories(response.data.result);
+      const subCategories = await vendorCatalogService.getSubCategoriesByCategory(value);
+      setSubCategories(subCategories);
     } catch (error) {
       message.error("Failed to fetch sub-categories");
     } finally {
@@ -116,8 +94,7 @@ const VendorProducts = () => {
     setLoadingSpecifications(true);
     form.setFieldsValue({ specifications: [] });
     try {
-      const response = await axiosConfig.get(API.ADMIN_SUBCATEGORY_SPECIFICATIONS(value));
-      const specs = response.data.result.map((spec) => ({
+      const specs = (await vendorCatalogService.getSpecificationsBySubCategory(value)).map((spec) => ({
         id: spec.id,
         name: spec.name,
         value: "",
@@ -160,46 +137,36 @@ const VendorProducts = () => {
   // Save edited changes
   const saveEdit = async (key) => {
     const row = dataSource.find((item) => item.key === key);
-    setLoading(true);
-  
+    setSubmitting(true);
     try {
-      await axiosConfig.put(`${API.VENDOR_PRODUCTS}/${key}`, row, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      await productService.updateProduct(key, row);
       message.success("Product updated successfully");
       setEditingKey("");
+      reload();
     } catch (error) {
-      if (error.response && error.response.data) {
-        message.error(error.response.data.message || "Failed to update product");
-      } else {
-        message.error("Network error or server unreachable.");
-      }
+      message.error(error.response?.data?.message || "Failed to update product");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  // Handle cell value change
   const handleInputChange = (key, column, value) => {
-    const newData = [...dataSource];
-    const index = newData.findIndex((item) => item.key === key);
-    if (index > -1) {
-      newData[index][column] = value;
-      setDataSource(newData);
-    }
+    setData((prev) => {
+      const next = [...prev];
+      const index = next.findIndex((item) => item.key === key);
+      if (index > -1) {
+        next[index] = { ...next[index], [column]: value };
+      }
+      return next;
+    });
   };
 
-  // Delete a product
   const handleDelete = async (key) => {
     try {
-      await axiosConfig.delete(`${API.VENDOR_PRODUCTS}/${key}`);
-      const newData = dataSource.filter((item) => item.key !== key);
-      setDataSource(newData);
-      setFilteredData(newData);
+      await productService.deleteProduct(key);
       message.success("Product deleted successfully");
-    } catch (error) {
+      reload();
+    } catch {
       message.error("Failed to delete product");
     }
   };
@@ -246,41 +213,18 @@ const VendorProducts = () => {
     });    
 
     try {
-      const response = await axiosConfig.post(API.VENDOR_PRODUCTS, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-      const createdProduct = response.data;
-      const updatedData = [
-        ...dataSource,
-        { ...createdProduct, key: createdProduct.id },
-      ];
-      setDataSource(updatedData);
-      setFilteredData(updatedData);
+      setSubmitting(true);
+      await productService.createProduct(formData);
       message.success("Product added successfully");
       form.resetFields();
       setFile(null);
       setIsModalVisible(false);
-    } catch (error) {
+      reload();
+    } catch {
       message.error("Failed to add product");
+    } finally {
+      setSubmitting(false);
     }
-  };
-
-  // Handle search
-  const handleSearch = (value) => {
-    setSearchText(value);
-    const filtered = dataSource.filter(
-      (item) =>
-        item.name.toLowerCase().includes(value.toLowerCase()) ||
-        item.description.toLowerCase().includes(value.toLowerCase())
-    );
-    setFilteredData(filtered);
-  };
-
-  // Handle pagination change
-  const handlePaginationChange = (current, pageSize) => {
-    setPagination({ current, pageSize });
   };
 
   const columns = [
@@ -473,37 +417,18 @@ const VendorProducts = () => {
           Add Product
         </Button>
       </div>
-      <div className="mt-2">
-        <Table
-          dataSource={filteredData}
-          loading={loading}
+      <div className="mt-2 overflow-x-auto">
+        <DataTable
           columns={columns}
-          rowClassName="editable-row"
-          pagination={{
-            pageSize: pagination.pageSize,
-            current: pagination.current,
-            onChange: handlePaginationChange,
-          }}
-          title={() => (
-            <div className="flex justify-between">
-              <Select
-                defaultValue={5}
-                onChange={(value) => handlePaginationChange(pagination.current, value)}
-                options={[
-                  { label: "5", value: 5 },
-                  { label: "10", value: 10 },
-                  { label: "20", value: 20 },
-                ]}
-                style={{ marginRight: 10, width: 100 }}
-              />
-              <Input.Search
-                placeholder="Search products"
-                value={searchText}
-                onChange={(e) => handleSearch(e.target.value)}
-                style={{ width: 300 }}
-              />
-            </div>
-          )}
+          dataSource={dataSource}
+          loading={loading || submitting}
+          error={error}
+          onRetry={reload}
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
+          search={search}
+          onSearch={handleSearch}
+          searchPlaceholder="Search products"
         />
       </div>
       <Modal
@@ -511,7 +436,7 @@ const VendorProducts = () => {
         open={isModalVisible}
         onOk={handleAddProduct}
         onCancel={handleCloseModal}
-        confirmLoading={loading}
+        confirmLoading={submitting}
         width={800}
 
       >

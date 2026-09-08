@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Form, Input, Select, Button, Spin, message, Upload, Row, Col } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import Breadcrumb from '../../components/Breadcrumb';
-import axiosConfig from '../../constants/AXIOS_CONFIG';
-import API from '../../constants/API';
 import { useParams } from 'react-router-dom';
+import { productService } from '../../services/vendor/productService';
+import { vendorCatalogService } from '../../services/vendor/catalogService';
 import defaultProductImage from "../../assets/product-image.jpg";
 
 const { Option } = Select;
@@ -24,38 +24,36 @@ export default function VendorProductDetails() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [productRes, categoriesRes, subCategoriesRes, specificationsRes, statusesRes] = await Promise.all([
-                    axiosConfig.get(API.VENDOR_PRODUCT(id)),
-                    axiosConfig.get(API.CATEGORIES),
-                    axiosConfig.get(API.ADMIN_SUBCATEGORIES),
-                    axiosConfig.get(API.ADMIN_SPECIFICATIONS),
-                    axiosConfig.get(API.PRODUCT_STATUSES),
+                const productData = await productService.getVendorProduct(id);
+                const subCategoryId = productData.subCategoryId;
+
+                const [categoriesRes, subCategoriesRes, specificationsRes, statusesRes] = await Promise.all([
+                    vendorCatalogService.getCategories(),
+                    vendorCatalogService.getSubCategories(),
+                    subCategoryId
+                        ? vendorCatalogService.getSpecificationsBySubCategory(subCategoryId)
+                        : Promise.resolve([]),
+                    vendorCatalogService.getProductStatuses(),
                 ]);
 
-                console.log("product API Response:", productRes.data);
-                console.log("SubCategories API Response:", subCategoriesRes.data);
-                console.log("Specifications API Response:", specificationsRes.data);
-                
                 const mappedProduct = {
-                    ...productRes.data,
-                    category: productRes.data.categoryId,
-                    subCategory: productRes.data.subCategoryId,
-                    productStatus: productRes.data.productStatusId,
+                    ...productData,
+                    category: productData.categoryId,
+                    subCategory: productData.subCategoryId,
+                    productStatus: productData.productStatusId,
                 };
 
-                // Get product specifications (specifications already associated with the product)
-                const mappedProductSpecifications = productRes.data.specifications.map(spec => ({
+                const mappedProductSpecifications = productData.specifications.map(spec => ({
                     name: spec.name,
                     value: spec.value,
                     id: spec.id,
                 }));
 
-                // Get sub-category specifications (generic specifications based on the sub-category)
-                const mappedSubCategorySpecifications = specificationsRes.data.result.filter(
-                    spec => spec.subCategoryId === productRes.data.subCategoryId
+                const subCategorySpecs = specificationsRes;
+                const mappedSubCategorySpecifications = subCategorySpecs.filter(
+                    spec => spec.subCategoryId === productData.subCategoryId
                 );
 
-                // Merge the product specifications with the sub-category specifications
                 const allSpecifications = [
                     ...mappedProductSpecifications,
                     ...mappedSubCategorySpecifications.filter(subSpec =>
@@ -64,12 +62,12 @@ export default function VendorProductDetails() {
                 ];
 
                 setProduct(mappedProduct);
-                setCategories(categoriesRes.data);
-                setSubCategories(subCategoriesRes.data.result);
+                setCategories(categoriesRes);
+                setSubCategories(subCategoriesRes);
                 setSpecifications(allSpecifications);
-                setStatuses(statusesRes.data);
+                setStatuses(statusesRes);
 
-                const defaultSource = productRes.data.imageUrl?.startsWith('http') ? 'url' : 'upload';
+                const defaultSource = productData.imageUrl?.startsWith('http') ? 'url' : 'upload';
                 setImageSource(defaultSource);
 
                 form.setFieldsValue({ ...mappedProduct, imageSource: defaultSource, specifications: allSpecifications });
@@ -83,16 +81,13 @@ export default function VendorProductDetails() {
         fetchData();
     }, [form, id]);
 
-    // dynamic update specifications when the subCategory changes
     useEffect(() => {
         if (product?.subCategory) {
             const filteredSpecifications = specifications.filter(spec => spec.subCategoryId === product.subCategory);
-            console.log("Filtered Specifications:", filteredSpecifications);
-
             form.setFieldsValue({ specifications: filteredSpecifications });
             setProduct(prev => ({ ...prev, specifications: filteredSpecifications }));
         }
-    }, [product?.subCategory, specifications]);
+    }, [product?.subCategory, specifications, form]);
 
     const handleSave = async (values) => {
         try {
@@ -107,23 +102,14 @@ export default function VendorProductDetails() {
             formData.append('price', values.price);
             formData.append('description', values.description);
 
-            console.log("Image Source:", imageSource);
-            console.log("File to upload:", file);
-
             if (imageSource === 'upload' && file) {
-                console.log("Appending file to formData:", file);
                 formData.append('imageFile', file);
             } else if (imageSource === 'url') {
-                console.log("Appending image URL to formData:", values.imageUrl);
                 formData.append('imageUrl', values.imageUrl);
             }
 
             // Send update request
-            const response = await axiosConfig.put(API.VENDOR_PRODUCT_UPDATE(product.id), formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
+            const response = await productService.updateProduct(product.id, formData);
 
             setProduct(response.data);
             form.setFieldsValue({
@@ -147,10 +133,7 @@ export default function VendorProductDetails() {
 
     const handleSubCategoryChange = async (subCategoryId) => {
         try {
-            const response = await axiosConfig.get(API.ADMIN_SUBCATEGORY_SPECIFICATIONS(subCategoryId));
-            const subCategorySpecifications = response.data.result;
-
-            console.log("the specifications related to subcategory are", subCategorySpecifications);
+            const subCategorySpecifications = await vendorCatalogService.getSpecificationsBySubCategory(subCategoryId);
     
             setSpecifications(subCategorySpecifications);
     
