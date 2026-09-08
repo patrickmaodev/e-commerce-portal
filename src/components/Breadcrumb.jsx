@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FaHome } from 'react-icons/fa';
+import { PATH } from '../constants/PATH';
 
 const Breadcrumb = () => {
   const location = useLocation();
@@ -10,7 +11,7 @@ const Breadcrumb = () => {
     <nav aria-label="breadcrumb">
       <ol className="flex space-x-2 text-sm text-gray-500">
         <li>
-          <Link className="hover:text-primary">
+          <Link to={PATH.HOME} className="hover:text-primary">
             <FaHome className="inline-block mr-1" size={25}/> 
           </Link>
         </li>
