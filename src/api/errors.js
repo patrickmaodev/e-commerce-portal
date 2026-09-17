@@ -5,7 +5,17 @@ import { message } from "antd";
  * Backend contract: { message, code } | { msg, code } | plain string
  */
 export function getApiErrorMessage(error, fallback = "Something went wrong") {
-  const data = error?.response?.data;
+  if (!error?.response) {
+    if (error?.code === "ERR_NETWORK") {
+      return "Cannot reach the server. Check that the backend is running.";
+    }
+    if (error?.message) {
+      return error.message;
+    }
+    return fallback;
+  }
+
+  const data = error.response.data;
 
   if (!data) {
     return fallback;

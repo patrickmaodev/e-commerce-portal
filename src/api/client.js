@@ -2,8 +2,17 @@ import axios from "axios";
 import { PATH } from "../constants/PATH";
 import { triggerLogout } from "../utils/authBridge";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
+
+const AUTH_PATHS = [
+  PATH.AUTH_ADMIN_LOGIN,
+  PATH.AUTH_VENDOR_LOGIN,
+  PATH.AUTH_REGISTER,
+];
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -26,11 +35,15 @@ apiClient.interceptors.response.use(
     const { response } = error;
 
     if (response && (response.status === 401 || response.status === 403)) {
-      triggerLogout();
-      const isAdminPath = window.location.pathname.startsWith(PATH.ADMIN_HOME);
-      window.location.href = isAdminPath
-        ? PATH.AUTH_ADMIN_LOGIN
-        : PATH.AUTH_VENDOR_LOGIN;
+      const isAuthPage = AUTH_PATHS.includes(window.location.pathname);
+
+      if (!isAuthPage) {
+        triggerLogout();
+        const isAdminPath = window.location.pathname.startsWith(PATH.ADMIN_HOME);
+        window.location.href = isAdminPath
+          ? PATH.AUTH_ADMIN_LOGIN
+          : PATH.AUTH_VENDOR_LOGIN;
+      }
     }
 
     return Promise.reject(error);
