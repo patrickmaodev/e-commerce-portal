@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Input, Button, Popconfirm, message, Modal, Form, Select, Upload, Row, Col } from "antd";
-import { UploadOutlined } from "@ant-design/icons";
+import { Eye, Pencil, Trash2, Upload as UploadIcon } from "lucide-react";
+import { actionIcon } from "../../components/icons/menuIcon";
 import { useNavigate } from "react-router-dom";
-import Breadcrumb from "../../components/Breadcrumb";
+import PageShell from "../../components/layout/PageShell";
 import DataTable from "../../components/tables/DataTable";
-import { FaEdit, FaTrashAlt, FaEye } from "react-icons/fa";
 import { productService } from "../../services/vendor/productService";
 import { vendorCatalogService } from "../../services/vendor/catalogService";
 import { useServerTable } from "../../hooks/useServerTable";
@@ -383,15 +383,14 @@ const VendorProducts = () => {
         ) : (
           <span>
             <Button
-              icon={<FaEye />}
+              icon={actionIcon(Eye)}
               onClick={() => navigate(PATH.VENDOR_PRODUCT(record.id))}
               size="small"
               style={{ marginRight: 8 }}
             >
-              View
             </Button>
             <Button
-              icon={<FaEdit />}
+              icon={actionIcon(Pencil)}
               onClick={() => startEditing(record)}
               size="small"
               style={{ marginRight: 8 }}
@@ -400,7 +399,7 @@ const VendorProducts = () => {
               title="Are you sure to delete this product?"
               onConfirm={() => handleDelete(record.key)}
             >
-              <Button icon={<FaTrashAlt />} size="small" danger />
+              <Button icon={actionIcon(Trash2)} size="small" danger />
             </Popconfirm>
           </span>
         );
@@ -409,15 +408,17 @@ const VendorProducts = () => {
   ];
 
   return (
-    <div className="p-6 bg-white">
-      <Breadcrumb />
-      <div className="row flex justify-between mt-2">
-        <h3 className="text-2xl font-semibold">Products</h3>
+    <PageShell
+      title="Products"
+      description="Manage your catalog and inventory."
+      actions={
         <Button type="primary" onClick={showModal}>
-          Add Product
+          Add product
         </Button>
-      </div>
-      <div className="mt-2 overflow-x-auto">
+      }
+      noPadding
+    >
+      <div className="overflow-x-auto">
         <DataTable
           columns={columns}
           dataSource={dataSource}
@@ -612,7 +613,7 @@ const VendorProducts = () => {
                 showUploadList={false}
                 accept="image/png,image/jpeg"
               >
-                <Button icon={<UploadOutlined />}>Choose File</Button>
+                <Button icon={actionIcon(UploadIcon)}>Choose File</Button>
               </Upload>
             </div>
             </Form.Item>
@@ -633,7 +634,7 @@ const VendorProducts = () => {
           )}
         </Form>
       </Modal>
-    </div>
+    </PageShell>
   );
 };
 

@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { setDocumentTitle } from "../../utils/documentTitle";
 import { Link, useNavigate } from "react-router-dom";
 import { useStateContext } from "../../contexts/ContextProvider";
 import { authService } from "../../services/auth/authService";
@@ -18,6 +19,11 @@ export default function LoginForm({
   const [errors, setErrors] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setDocumentTitle({ pageTitle: title });
+    return () => setDocumentTitle({});
+  }, [title]);
 
   const onSubmit = async (ev) => {
     ev.preventDefault();

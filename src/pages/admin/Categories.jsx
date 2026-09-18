@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { Button, Modal, Form, Input } from "antd";
-import Breadcrumb from "../../components/Breadcrumb";
+import PageShell from "../../components/layout/PageShell";
 import { CrudTable, buildEditableColumns } from "../../components/tables/CrudTable";
 import { useCrudTable } from "../../hooks/useCrudTable";
 import { adminCatalogService } from "../../services/admin/catalogService";
@@ -73,16 +73,15 @@ const Categories = () => {
   };
 
   return (
-    <div className="p-6 bg-white">
-      <Breadcrumb />
-      <div className="row flex justify-between mt-2">
-        <h3 className="text-2xl font-semibold">Categories</h3>
+    <PageShell
+      title="Categories"
+      actions={
         <Button type="primary" onClick={() => setIsModalVisible(true)}>
-          Add Category
+          Add category
         </Button>
-      </div>
-      <div className="mt-2">
-        <CrudTable
+      }
+    >
+      <CrudTable
           filteredData={filteredData}
           loading={loading}
           columns={columns}
@@ -92,7 +91,6 @@ const Categories = () => {
           onSearch={handleSearch}
           searchPlaceholder="Search categories"
         />
-      </div>
       <Modal
         title="Add New Category"
         open={isModalVisible}
@@ -117,7 +115,7 @@ const Categories = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </PageShell>
   );
 };
 

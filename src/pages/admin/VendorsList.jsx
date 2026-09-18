@@ -1,7 +1,8 @@
 import { useState, useCallback } from "react";
 import { Input, Button, Popconfirm, message, Modal, Form } from "antd";
-import { FaEdit, FaTrashAlt } from "react-icons/fa";
-import Breadcrumb from "../../components/Breadcrumb";
+import { Pencil, Trash2 } from "lucide-react";
+import { actionIcon } from "../../components/icons/menuIcon";
+import PageShell from "../../components/layout/PageShell";
 import DataTable from "../../components/tables/DataTable";
 import { useServerTable } from "../../hooks/useServerTable";
 import { vendorService } from "../../services/admin/vendorService";
@@ -147,7 +148,7 @@ export default function VendorsList() {
         ) : (
           <span>
             <Button
-              icon={<FaEdit />}
+              icon={actionIcon(Pencil)}
               onClick={() => startEditing(record)}
               size="small"
               style={{ marginRight: 8 }}
@@ -156,7 +157,7 @@ export default function VendorsList() {
               title="Are you sure to delete this vendor?"
               onConfirm={() => handleDelete(record.key)}
             >
-              <Button icon={<FaTrashAlt />} size="small" danger />
+              <Button icon={actionIcon(Trash2)} size="small" danger />
             </Popconfirm>
           </span>
         );
@@ -165,17 +166,17 @@ export default function VendorsList() {
   ];
 
   return (
-    <div className="p-6 bg-white">
-      <Breadcrumb />
-
-      <div className="row flex justify-between mt-2">
-        <h3 className="text-2xl font-semibold">Vendors List</h3>
+    <PageShell
+      title="Vendors"
+      description="Manage seller accounts on the marketplace."
+      actions={
         <Button type="primary" onClick={() => setIsModalVisible(true)}>
-          Add Vendor
+          Add vendor
         </Button>
-      </div>
-
-      <div className="mt-2 overflow-x-auto">
+      }
+      noPadding
+    >
+      <div className="overflow-x-auto">
         <DataTable
           columns={columns}
           dataSource={dataSource}
@@ -221,6 +222,6 @@ export default function VendorsList() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </PageShell>
   );
 }

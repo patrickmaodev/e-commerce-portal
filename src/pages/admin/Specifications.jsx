@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { Table, Input, Button, Popconfirm, message, Modal, Form, Select } from "antd";
-import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
-import Breadcrumb from "../../components/Breadcrumb";
-import { FaTrashAlt } from "react-icons/fa";
+import { Plus, Trash2 } from "lucide-react";
+import PageShell from "../../components/layout/PageShell";
+import { actionIcon } from "../../components/icons/menuIcon";
 import { CrudTableToolbar } from "../../components/tables/CrudTable";
 import { useCrudTable } from "../../hooks/useCrudTable";
 import { adminCatalogService } from "../../services/admin/catalogService";
@@ -59,21 +59,21 @@ const Specifications = () => {
           title="Are you sure to delete this specification?"
           onConfirm={() => handleDelete(record.key)}
         >
-          <Button icon={<FaTrashAlt />} size="small" danger />
+          <Button icon={actionIcon(Trash2)} size="small" danger />
         </Popconfirm>
       ),
     },
   ];
 
   return (
-    <div className="p-6 bg-white">
-      <Breadcrumb />
-      <div className="row flex justify-between mt-2">
-        <h3 className="text-2xl font-semibold">Specifications</h3>
+    <PageShell
+      title="Specifications"
+      actions={
         <Button type="primary" onClick={() => setIsModalVisible(true)}>
-          Add Specification
+          Add specification
         </Button>
-      </div>
+      }
+    >
       <Table
         dataSource={filteredData}
         loading={loading}
@@ -136,13 +136,13 @@ const Specifications = () => {
                     >
                       <Input.TextArea placeholder="Description" rows={1} />
                     </Form.Item>
-                    <Button type="link" onClick={() => remove(name)} icon={<DeleteOutlined />} danger>
+                    <Button type="link" onClick={() => remove(name)} icon={actionIcon(Trash2)} danger>
                       Remove
                     </Button>
                   </div>
                 ))}
                 <Form.Item>
-                  <Button type="dashed" onClick={() => add()} style={{ width: "100%" }} icon={<PlusOutlined />}>
+                  <Button type="dashed" onClick={() => add()} style={{ width: "100%" }} icon={actionIcon(Plus)}>
                     Add Specification
                   </Button>
                 </Form.Item>
@@ -151,7 +151,7 @@ const Specifications = () => {
           </Form.List>
         </Form>
       </Modal>
-    </div>
+    </PageShell>
   );
 };
 

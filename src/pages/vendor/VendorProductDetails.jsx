@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Input, Select, Button, Spin, message, Upload, Row, Col } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
-import Breadcrumb from '../../components/Breadcrumb';
+import { Upload as UploadIcon } from 'lucide-react';
+import { actionIcon } from '../../components/icons/menuIcon';
+import PageShell from '../../components/layout/PageShell';
 import { useParams } from 'react-router-dom';
 import { productService } from '../../services/vendor/productService';
 import { vendorCatalogService } from '../../services/vendor/catalogService';
@@ -162,16 +163,16 @@ export default function VendorProductDetails() {
 
     if (loading) {
         return (
-            <div className="p-6 bg-white flex justify-center items-center">
-                <Spin size="large" />
-            </div>
+            <PageShell title="Product details">
+                <div className="flex justify-center py-16">
+                    <Spin size="large" />
+                </div>
+            </PageShell>
         );
     }
 
     return (
-        <div className="p-6 bg-white">
-            <Breadcrumb />
-            <h3 className="text-2xl font-semibold pb-4">Edit Product Details</h3>
+        <PageShell title="Edit product" description="Update listing details, pricing, and media.">
             <Form
                 form={form}
                 layout="vertical"
@@ -221,7 +222,7 @@ export default function VendorProductDetails() {
                                 showUploadList={false}
                                 accept="image/png,image/jpeg"
                             >
-                                <Button icon={<UploadOutlined />}>Choose File</Button>
+                                <Button icon={actionIcon(UploadIcon)}>Choose File</Button>
                             </Upload>
                         </Form.Item>
                         ) : (
@@ -378,6 +379,6 @@ export default function VendorProductDetails() {
                     </Button>
                 </div>
             </Form>
-        </div>
+        </PageShell>
     );
 }

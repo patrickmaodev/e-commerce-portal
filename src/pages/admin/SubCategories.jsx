@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button, Modal, Form, Input, Select } from "antd";
-import Breadcrumb from "../../components/Breadcrumb";
+import PageShell from "../../components/layout/PageShell";
 import { CrudTable, buildEditableColumns } from "../../components/tables/CrudTable";
 import { useCrudTable } from "../../hooks/useCrudTable";
 import { adminCatalogService } from "../../services/admin/catalogService";
@@ -75,16 +75,15 @@ const SubCategories = () => {
   };
 
   return (
-    <div className="p-6 bg-white">
-      <Breadcrumb />
-      <div className="row flex justify-between mt-2">
-        <h3 className="text-2xl font-semibold">SubCategories</h3>
+    <PageShell
+      title="Sub categories"
+      actions={
         <Button type="primary" onClick={() => setIsModalVisible(true)}>
-          Add SubCategory
+          Add sub category
         </Button>
-      </div>
-      <div className="mt-2">
-        <CrudTable
+      }
+    >
+      <CrudTable
           filteredData={filteredData}
           loading={loading}
           columns={columns}
@@ -94,7 +93,6 @@ const SubCategories = () => {
           onSearch={handleSearch}
           searchPlaceholder="Search subcategories"
         />
-      </div>
       <Modal
         title="Add New SubCategory"
         open={isModalVisible}
@@ -129,7 +127,7 @@ const SubCategories = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </PageShell>
   );
 };
 

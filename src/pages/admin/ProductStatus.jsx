@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { Button, Modal, Form, Input } from "antd";
-import Breadcrumb from "../../components/Breadcrumb";
+import PageShell from "../../components/layout/PageShell";
 import { CrudTable, buildEditableColumns } from "../../components/tables/CrudTable";
 import { useCrudTable } from "../../hooks/useCrudTable";
 import { adminCatalogService } from "../../services/admin/catalogService";
@@ -74,14 +74,14 @@ const ProductStatus = () => {
   };
 
   return (
-    <div className="p-6 bg-white">
-      <Breadcrumb />
-      <div className="row flex justify-between mt-2">
-        <h3 className="text-2xl font-semibold">Product Statuses</h3>
+    <PageShell
+      title="Product statuses"
+      actions={
         <Button type="primary" onClick={() => setIsModalVisible(true)}>
-          Add Product Status
+          Add status
         </Button>
-      </div>
+      }
+    >
       <CrudTable
         filteredData={filteredData}
         loading={loading}
@@ -116,7 +116,7 @@ const ProductStatus = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </PageShell>
   );
 };
 

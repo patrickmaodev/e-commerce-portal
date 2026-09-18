@@ -1,24 +1,23 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
+import { ConfigProvider, Layout } from "antd";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
-import Footer from "./Footer";
 import { useStateContext } from "../../contexts/ContextProvider";
 import apiClient from "../../api/client";
-import { PATH } from "../../constants/PATH";
 import API from "../../constants/API";
+import { antdTheme } from "../../theme/antdTheme";
+
+const { Content } = Layout;
+
+const SIDER_WIDTH = 252;
+const SIDER_COLLAPSED_WIDTH = 72;
 
 export default function DashboardLayout({ variant = "admin" }) {
   const { user, logout } = useStateContext();
-  const [sidebarVisible, setSidebarVisible] = useState(true);
-  const [subMenuOpen, setSubMenuOpen] = useState({});
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  const toggleSubMenu = (menu) => {
-    setSubMenuOpen((prev) => ({ ...prev, [menu]: !prev[menu] }));
-  };
-
-  const onLogout = async (ev) => {
-    ev.preventDefault();
+  const onLogout = async () => {
     try {
       await apiClient.post(API.LOGOUT);
     } catch (error) {
@@ -28,30 +27,34 @@ export default function DashboardLayout({ variant = "admin" }) {
     }
   };
 
-  const layoutId = variant === "admin" ? "adminLayout" : "vendorLayout";
-  const heightClass = variant === "admin" ? "h-screen" : "min-h-screen";
-
+  const siderOffset = sidebarCollapsed ? SIDER_COLLAPSED_WIDTH : SIDER_WIDTH;
   return (
-    <div id={layoutId} className={`flex ${heightClass} bg-gray-200`}>
-      <Sidebar
-        toggleSubMenu={toggleSubMenu}
-        subMenuOpen={subMenuOpen}
-        PATH={PATH}
-        sidebarVisible={sidebarVisible}
-        role={user?.roleName}
-      />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header
-          sidebarVisible={sidebarVisible}
-          setSidebarVisible={setSidebarVisible}
-          user={user}
-          onLogout={onLogout}
+    <ConfigProvider theme={antdTheme}>
+      <Layout className="min-h-screen bg-slate-100">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onCollapse={setSidebarCollapsed}
+          role={user?.roleName}
+          variant={variant}
         />
-        <main className="p-6 flex-1 overflow-y-auto max-h-screen">
-          <Outlet />
-        </main>
-        <Footer />
-      </div>
-    </div>
+
+        <Layout
+          className="dashboard-layout-main min-h-screen transition-[margin] duration-200"
+          style={{ marginLeft: siderOffset }}
+        >
+          <Header
+            sidebarCollapsed={sidebarCollapsed}
+            setSidebarCollapsed={setSidebarCollapsed}
+            user={user}
+            onLogout={onLogout}
+            variant={variant}
+          />
+
+          <Content className="dashboard-content">
+            <Outlet />
+          </Content>
+        </Layout>
+      </Layout>
+    </ConfigProvider>
   );
 }

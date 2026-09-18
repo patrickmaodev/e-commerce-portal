@@ -4,7 +4,8 @@
  * and other growing datasets, use DataTable + useServerTable instead.
  */
 import { Table, Input, Button, Popconfirm, Select } from "antd";
-import { FaEdit, FaTrashAlt } from "react-icons/fa";
+import { Pencil, Trash2 } from "lucide-react";
+import { actionIcon } from "../icons/menuIcon";
 
 export function CrudTableToolbar({
   pagination,
@@ -14,7 +15,7 @@ export function CrudTableToolbar({
   searchPlaceholder = "Search",
 }) {
   return (
-    <div className="flex justify-between">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-1 pb-3">
       <Select
         defaultValue={5}
         onChange={(value) => onPaginationChange(pagination.current, value)}
@@ -78,13 +79,13 @@ export function buildEditableColumns({
         ) : (
           <span>
             <Button
-              icon={<FaEdit />}
+              icon={actionIcon(Pencil)}
               onClick={() => onStartEditing(record)}
               size="small"
               style={{ marginRight: 8 }}
             />
             <Popconfirm title={deleteTitle} onConfirm={() => onDelete(record.key)}>
-              <Button icon={<FaTrashAlt />} size="small" danger />
+              <Button icon={actionIcon(Trash2)} size="small" danger />
             </Popconfirm>
           </span>
         );

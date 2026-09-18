@@ -1,46 +1,99 @@
-import { FaBars, FaTimes, FaSignOutAlt } from "react-icons/fa";
-import { useState } from "react";
+import { Dropdown, Layout } from "antd";
+import { Bell, ChevronsRight, LogOut, Settings, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { actionIcon } from "../icons/menuIcon";
 import defaultProfileImage from "../../assets/profile-image.png";
+import { PATH } from "../../constants/PATH";
 
-export default function Header({ sidebarVisible, setSidebarVisible, user, onLogout }) {
-  const [dropdownVisible, setDropdownVisible] = useState(false);
+const { Header: AntHeader } = Layout;
+
+export default function Header({
+  sidebarCollapsed,
+  setSidebarCollapsed,
+  user,
+  onLogout,
+  variant = "admin",
+}) {
+  const navigate = useNavigate();
+  const displayName = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Account";
+  const isVendor = variant === "vendor";
+
+  const profilePath = isVendor ? PATH.VENDOR_PROFILE : PATH.ADMIN_DASHBOARD;
+  const settingsPath = isVendor ? PATH.VENDOR_SETTINGS : PATH.ADMIN_CATEGORIES;
+
+  const menuItems = [
+    {
+      key: "profile",
+      label: "Profile",
+      icon: actionIcon(User),
+      onClick: () => navigate(profilePath),
+    },
+    {
+      key: "settings",
+      label: "Settings",
+      icon: actionIcon(Settings),
+      onClick: () => navigate(settingsPath),
+    },
+    { type: "divider" },
+    {
+      key: "logout",
+      label: "Sign out",
+      icon: actionIcon(LogOut),
+      danger: true,
+      onClick: onLogout,
+    },
+  ];
 
   return (
-    <header className="flex justify-between items-center p-4 bg-gradient-to-r from-[#4F3CC9] to-purple-500 shadow-md text-white">
-      <button
-        className="text-2xl text-white hover:text-[#000000] transition-transform transform hover:scale-110"
-        onClick={() => setSidebarVisible((prev) => !prev)}
-      >
-        {sidebarVisible ? <FaTimes /> : <FaBars />}
-      </button>
-
-      <div
-        className="flex items-center gap-3 relative"
-        onMouseEnter={() => setDropdownVisible(true)}
-        onMouseLeave={() => setDropdownVisible(false)}
-      >
-        <span className="text-lg font-semibold">
-          Welcome, {user?.firstName} {user?.lastName}
-        </span>
-
-        <img
-          src={user?.profileImage || defaultProfileImage}
-          alt="Profile"
-          className="w-12 h-12 rounded-full border-2 border-white shadow-sm"
-        />
-
-        {dropdownVisible && (
-          <div className="absolute right-0 top-12 bg-white text-black shadow-lg rounded-lg py-2 w-48 z-20">
+    <AntHeader className="dashboard-header !h-14 !bg-white !px-0">
+      <div className="dashboard-header-inner">
+        <div className="flex min-w-0 flex-1 items-center">
+          {sidebarCollapsed ? (
             <button
-              onClick={onLogout}
-              className="flex items-center gap-2 w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100 rounded-md"
+              type="button"
+              aria-label="Expand sidebar"
+              className="dashboard-sidebar-toggle"
+              onClick={() => setSidebarCollapsed(false)}
             >
-              <FaSignOutAlt />
-              Logout
+              {actionIcon(ChevronsRight, 20)}
             </button>
+          ) : null}
+        </div>
+
+        <div className="dashboard-header-actions">
+          <button
+            type="button"
+            aria-label="Notifications"
+            className="dashboard-icon-btn relative"
+          >
+            {actionIcon(Bell, 20)}
+            <span className="dashboard-notification-dot" aria-hidden />
+          </button>
+
+          <div className="dashboard-user-area">
+            <div className="dashboard-user-text">
+              <span className="dashboard-user-name">{displayName}</span>
+              {user?.email ? (
+                <span className="dashboard-user-email">{user.email}</span>
+              ) : null}
+            </div>
+
+            <Dropdown menu={{ items: menuItems }} trigger={["click"]} placement="bottomRight">
+              <button
+                type="button"
+                aria-label="Open account menu"
+                className="dashboard-profile-btn"
+              >
+                <img
+                  src={user?.profileImage || defaultProfileImage}
+                  alt=""
+                  className="dashboard-user-avatar"
+                />
+              </button>
+            </Dropdown>
           </div>
-        )}
+        </div>
       </div>
-    </header>
+    </AntHeader>
   );
 }

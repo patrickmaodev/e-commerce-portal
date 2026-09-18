@@ -3,8 +3,9 @@ import {
   Button, Modal, Form, Input, DatePicker, Switch, Row, Col, Select, Popconfirm,
 } from "antd";
 import dayjs from "dayjs";
-import Breadcrumb from "../../components/Breadcrumb";
-import { FaEdit, FaTrashAlt } from "react-icons/fa";
+import PageShell from "../../components/layout/PageShell";
+import { Pencil, Trash2 } from "lucide-react";
+import { actionIcon } from "../../components/icons/menuIcon";
 import { CrudTable } from "../../components/tables/CrudTable";
 import { useCrudTable } from "../../hooks/useCrudTable";
 import { adminCatalogService } from "../../services/admin/catalogService";
@@ -155,9 +156,9 @@ const Banners = () => {
           </span>
         ) : (
           <span>
-            <Button icon={<FaEdit />} onClick={() => startEditing(record)} size="small" style={{ marginRight: 8 }} />
+            <Button icon={actionIcon(Pencil)} onClick={() => startEditing(record)} size="small" style={{ marginRight: 8 }} />
             <Popconfirm title="Are you sure to delete this banner?" onConfirm={() => handleDelete(record.key)}>
-              <Button icon={<FaTrashAlt />} size="small" danger />
+              <Button icon={actionIcon(Trash2)} size="small" danger />
             </Popconfirm>
           </span>
         );
@@ -175,14 +176,14 @@ const Banners = () => {
   };
 
   return (
-    <div className="p-6 bg-white">
-      <Breadcrumb />
-      <div className="row flex justify-between mt-2">
-        <h3 className="text-2xl font-semibold">Banners</h3>
+    <PageShell
+      title="Banners"
+      actions={
         <Button type="primary" onClick={() => setIsModalVisible(true)}>
-          Add Banner
+          Add banner
         </Button>
-      </div>
+      }
+    >
       <CrudTable
         filteredData={filteredData}
         loading={loading}
@@ -269,7 +270,7 @@ const Banners = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </PageShell>
   );
 };
 

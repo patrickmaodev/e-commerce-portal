@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import Breadcrumb from "../../components/Breadcrumb";
+import PageShell from "../../components/layout/PageShell";
 import DataTable from "../../components/tables/DataTable";
 import { useServerTable } from "../../hooks/useServerTable";
 import { orderService } from "../../services/admin/orderService";
@@ -36,9 +36,7 @@ export default function OrdersAdmin() {
   ];
 
   return (
-    <div className="p-6 bg-white">
-      <Breadcrumb />
-      <h3 className="text-2xl font-semibold mt-2 mb-4">Orders</h3>
+    <PageShell title="Orders" description="Track and search marketplace orders." noPadding>
       <DataTable
         columns={columns}
         dataSource={dataSource}
@@ -51,6 +49,6 @@ export default function OrdersAdmin() {
         onSearch={handleSearch}
         searchPlaceholder="Search orders"
       />
-    </div>
+    </PageShell>
   );
 }
